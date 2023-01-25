@@ -248,7 +248,7 @@ func (p HeatmapPrinter) Srender() (string, error) {
 		p.AxisStyle = DefaultHeatmap.AxisStyle
 	}
 
-	if RawOutput {
+	if RawOutput.Load() {
 		p.Legend = false
 	}
 
