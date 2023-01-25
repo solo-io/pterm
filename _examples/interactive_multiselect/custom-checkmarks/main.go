@@ -5,7 +5,7 @@ import (
 
 	"atomicgo.dev/keyboard/keys"
 
-	"github.com/pterm/pterm"
+	"github.com/solo-io/pterm"
 )
 
 func main() {

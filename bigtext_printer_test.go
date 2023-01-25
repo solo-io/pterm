@@ -8,7 +8,7 @@ import (
 
 	"github.com/MarvinJWendt/testza"
 
-	"github.com/pterm/pterm"
+	"github.com/solo-io/pterm"
 )
 
 func TestBigTextPrinterNilPrint(t *testing.T) {

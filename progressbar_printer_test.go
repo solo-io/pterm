@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/MarvinJWendt/testza"
-	"github.com/pterm/pterm"
+	"github.com/solo-io/pterm"
 )
 
 func TestProgressbarPrinter_Add(t *testing.T) {

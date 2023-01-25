@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pterm/pterm"
+	"github.com/solo-io/pterm"
 )
 
 // PrintAverageExecutionTime times the average execution time of a function.

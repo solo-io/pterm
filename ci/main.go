@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pterm/pterm"
+	"github.com/solo-io/pterm"
 )
 
 type Examples struct {

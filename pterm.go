@@ -3,7 +3,7 @@
 //
 // Official docs are available at: https://docs.pterm.sh
 //
-// View the animated examples here: https://github.com/pterm/pterm#-examples
+// View the animated examples here: https://github.com/solo-io/pterm#-examples
 package pterm
 
 import (

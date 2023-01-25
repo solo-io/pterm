@@ -11,7 +11,7 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
-	"github.com/pterm/pterm/internal"
+	"github.com/solo-io/pterm/internal"
 )
 
 var (

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/MarvinJWendt/testza"
-	"github.com/pterm/pterm/internal"
+	"github.com/solo-io/pterm/internal"
 )
 
 func TestCenterText(t *testing.T) {

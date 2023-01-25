@@ -3,7 +3,7 @@ package internal_test
 import (
 	"testing"
 
-	"github.com/pterm/pterm/internal"
+	"github.com/solo-io/pterm/internal"
 )
 
 func TestPercentage(t *testing.T) {

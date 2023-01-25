@@ -3,7 +3,7 @@ package main
 import (
 	"time"
 
-	"github.com/pterm/pterm"
+	"github.com/solo-io/pterm"
 )
 
 func main() {

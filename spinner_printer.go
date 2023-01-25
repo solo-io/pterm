@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pterm/pterm/internal"
+	"github.com/solo-io/pterm/internal"
 	"go.uber.org/atomic"
 )
 

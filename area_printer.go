@@ -5,7 +5,7 @@ import (
 
 	"atomicgo.dev/cursor"
 
-	"github.com/pterm/pterm/internal"
+	"github.com/solo-io/pterm/internal"
 )
 
 // DefaultArea is the default area printer.

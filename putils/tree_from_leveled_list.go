@@ -1,6 +1,6 @@
 package putils
 
-import "github.com/pterm/pterm"
+import "github.com/solo-io/pterm"
 
 // TreeFromLeveledList converts a TreeItems list to a TreeNode and returns it.
 func TreeFromLeveledList(leveledListItems pterm.LeveledList) pterm.TreeNode {

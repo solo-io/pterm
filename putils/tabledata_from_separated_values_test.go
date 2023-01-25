@@ -5,7 +5,7 @@ import (
 
 	"github.com/MarvinJWendt/testza"
 
-	"github.com/pterm/pterm"
+	"github.com/solo-io/pterm"
 )
 
 func TestTableDataFromSeparatedValues(t *testing.T) {

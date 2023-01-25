@@ -1,4 +1,4 @@
-module github.com/pterm/pterm
+module github.com/solo-io/pterm
 
 go 1.18
 
@@ -9,6 +9,7 @@ require (
 	github.com/gookit/color v1.5.2
 	github.com/lithammer/fuzzysearch v1.1.5
 	github.com/mattn/go-runewidth v0.0.14
+	go.uber.org/atomic v1.10.0
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	golang.org/x/text v0.6.0
 )
@@ -18,9 +19,9 @@ require (
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.0 // indirect
+	github.com/pterm/pterm v0.12.49 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect
-	go.uber.org/atomic v1.10.0 // indirect
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 )

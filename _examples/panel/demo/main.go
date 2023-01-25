@@ -1,6 +1,6 @@
 package main
 
-import "github.com/pterm/pterm"
+import "github.com/solo-io/pterm"
 
 func main() {
 	// Declare panels in a two dimensional grid system.

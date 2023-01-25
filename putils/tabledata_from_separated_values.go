@@ -3,7 +3,7 @@ package putils
 import (
 	"strings"
 
-	"github.com/pterm/pterm"
+	"github.com/solo-io/pterm"
 )
 
 // TableDataFromSeparatedValues converts values, separated by separator, into pterm.TableData.

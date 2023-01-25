@@ -1,6 +1,6 @@
 package main
 
-import "github.com/pterm/pterm"
+import "github.com/solo-io/pterm"
 
 func main() {
 	// Create styles as new variables

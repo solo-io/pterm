@@ -1,6 +1,6 @@
 package putils
 
-import "github.com/pterm/pterm"
+import "github.com/solo-io/pterm"
 
 // RunWithSpinner starts a spinner, then runs a function and after the function is done, the spinner will stop again.
 func RunWithSpinner(spinner *pterm.SpinnerPrinter, f func(spinner *pterm.SpinnerPrinter) error) error {

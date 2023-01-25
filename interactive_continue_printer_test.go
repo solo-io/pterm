@@ -9,7 +9,7 @@ import (
 	"atomicgo.dev/keyboard/keys"
 	"github.com/MarvinJWendt/testza"
 
-	"github.com/pterm/pterm"
+	"github.com/solo-io/pterm"
 )
 
 func TestInteractiveContinuePrinter_Show_yes(t *testing.T) {

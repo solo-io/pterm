@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/pterm/pterm"
+	"github.com/solo-io/pterm"
 )
 
 func do(title string, currentLevel int, f func(currentLevel int)) {

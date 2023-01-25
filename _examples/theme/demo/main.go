@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/pterm/pterm"
 	"reflect"
 	"time"
+
+	"github.com/solo-io/pterm"
 )
 
 func main() {

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/pterm/pterm"
-	"github.com/pterm/pterm/putils"
+	"github.com/solo-io/pterm"
+	"github.com/solo-io/pterm/putils"
 )
 
 func main() {

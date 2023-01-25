@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pterm/pterm/internal"
+	"github.com/solo-io/pterm/internal"
 )
 
 // NewLettersFromString creates a Letters object from a string, which is prefilled with the LetterStyle from ThemeDefault.
