@@ -2,27 +2,39 @@ package pterm
 
 import (
 	"io"
+	"sync"
 	"time"
 
 	"github.com/pterm/pterm/internal"
+	"go.uber.org/atomic"
 )
 
-var activeSpinnerPrinters []*SpinnerPrinter
-
-// DefaultSpinner is the default SpinnerPrinter.
-var DefaultSpinner = SpinnerPrinter{
-	Sequence:            []string{"▀ ", " ▀", " ▄", "▄ "},
-	Style:               &ThemeDefault.SpinnerStyle,
-	Delay:               time.Millisecond * 200,
-	ShowTimer:           true,
-	TimerRoundingFactor: time.Second,
-	TimerStyle:          &ThemeDefault.TimerStyle,
-	MessageStyle:        &ThemeDefault.SpinnerTextStyle,
-	InfoPrinter:         &Info,
-	SuccessPrinter:      &Success,
-	FailPrinter:         &Error,
-	WarningPrinter:      &Warning,
+type atomicActiveSpinnerPrinters struct {
+	printers []*SpinnerPrinter
+	lock     *sync.Mutex
 }
+
+var (
+	// DefaultSpinner is the default SpinnerPrinter.
+	DefaultSpinner = SpinnerPrinter{
+		Sequence:            []string{"▀ ", " ▀", " ▄", "▄ "},
+		Style:               &ThemeDefault.SpinnerStyle,
+		Delay:               time.Millisecond * 200,
+		ShowTimer:           true,
+		TimerRoundingFactor: time.Second,
+		TimerStyle:          &ThemeDefault.TimerStyle,
+		MessageStyle:        &ThemeDefault.SpinnerTextStyle,
+		InfoPrinter:         &Info,
+		SuccessPrinter:      &Success,
+		FailPrinter:         &Error,
+		WarningPrinter:      &Warning,
+	}
+
+	activeSpinnerPrinters = atomicActiveSpinnerPrinters{
+		printers: []*SpinnerPrinter{},
+		lock:     &sync.Mutex{},
+	}
+)
 
 // SpinnerPrinter is a loading animation, which can be used if the progress is unknown.
 // It's an animation loop, which can have a text and supports throwing errors or warnings.
@@ -45,49 +57,75 @@ type SpinnerPrinter struct {
 	IsActive bool
 
 	startedAt       time.Time
-	currentSequence string
+	currentSequence *atomic.String
+
+	// Thread-safe versions of existing variables used internally
+	atomicIsActive *atomic.Bool
+	atomicText     *atomic.String
 
 	Writer io.Writer
 }
 
+// Lazy init used to initialize thread-safe variables
+func (s *SpinnerPrinter) lazyInit() {
+	if s.atomicIsActive == nil {
+		s.atomicIsActive = atomic.NewBool(s.IsActive)
+	}
+	if s.atomicText == nil {
+		s.atomicText = atomic.NewString(s.Text)
+	}
+	if s.currentSequence == nil {
+		s.currentSequence = atomic.NewString("")
+	}
+}
+
 // WithText adds a text to the SpinnerPrinter.
 func (s SpinnerPrinter) WithText(text string) *SpinnerPrinter {
+	s.lazyInit()
+	s.atomicText.Store(text)
+	// We still set Text here so it is available to the users, it is not read anywhere
 	s.Text = text
 	return &s
 }
 
 // WithSequence adds a sequence to the SpinnerPrinter.
 func (s SpinnerPrinter) WithSequence(sequence ...string) *SpinnerPrinter {
+	s.lazyInit()
 	s.Sequence = sequence
 	return &s
 }
 
 // WithStyle adds a style to the SpinnerPrinter.
 func (s SpinnerPrinter) WithStyle(style *Style) *SpinnerPrinter {
+	s.lazyInit()
 	s.Style = style
 	return &s
 }
 
 // WithDelay adds a delay to the SpinnerPrinter.
 func (s SpinnerPrinter) WithDelay(delay time.Duration) *SpinnerPrinter {
+	s.lazyInit()
 	s.Delay = delay
 	return &s
 }
 
 // WithMessageStyle adds a style to the SpinnerPrinter message.
 func (s SpinnerPrinter) WithMessageStyle(style *Style) *SpinnerPrinter {
+	s.lazyInit()
 	s.MessageStyle = style
 	return &s
 }
 
 // WithRemoveWhenDone removes the SpinnerPrinter after it is done.
 func (s SpinnerPrinter) WithRemoveWhenDone(b ...bool) *SpinnerPrinter {
+	s.lazyInit()
 	s.RemoveWhenDone = internal.WithBoolean(b)
 	return &s
 }
 
 // WithShowTimer shows how long the spinner is running.
 func (s SpinnerPrinter) WithShowTimer(b ...bool) *SpinnerPrinter {
+	s.lazyInit()
 	s.ShowTimer = internal.WithBoolean(b)
 	return &s
 }
@@ -100,20 +138,23 @@ func (s SpinnerPrinter) WithStartedAt(t time.Time) *SpinnerPrinter {
 
 // WithTimerRoundingFactor sets the rounding factor for the timer.
 func (s SpinnerPrinter) WithTimerRoundingFactor(factor time.Duration) *SpinnerPrinter {
+	s.lazyInit()
 	s.TimerRoundingFactor = factor
 	return &s
 }
 
 // WithTimerStyle adds a style to the SpinnerPrinter timer.
 func (s SpinnerPrinter) WithTimerStyle(style *Style) *SpinnerPrinter {
+	s.lazyInit()
 	s.TimerStyle = style
 	return &s
 }
 
 // WithWriter sets the custom Writer.
-func (p SpinnerPrinter) WithWriter(writer io.Writer) *SpinnerPrinter {
-	p.Writer = writer
-	return &p
+func (s SpinnerPrinter) WithWriter(writer io.Writer) *SpinnerPrinter {
+	s.lazyInit()
+	s.Writer = writer
+	return &s
 }
 
 // SetWriter sets the custom Writer.
@@ -134,35 +175,46 @@ func (s *SpinnerPrinter) SetStartedAt(t time.Time) {
 // UpdateText updates the message of the active SpinnerPrinter.
 // Can be used live.
 func (s *SpinnerPrinter) UpdateText(text string) {
+	s.lazyInit()
+	s.atomicText.Store(text)
+	// We still set Text here so it is available to the users, it is not read anywhere
 	s.Text = text
-	if !RawOutput {
-		Fprinto(s.Writer, s.Style.Sprint(s.currentSequence)+" "+s.MessageStyle.Sprint(s.Text))
-	} else {
-		Fprintln(s.Writer, s.Text)
+	if !RawOutput.Load() {
+		fClearLine(s.Writer)
+		Fprinto(s.Writer, s.Style.Sprint(s.currentSequence.Load())+" "+s.MessageStyle.Sprint(s.atomicText.Load()))
+	}
+	if RawOutput.Load() {
+		Fprintln(s.Writer, s.atomicText.Load())
 	}
 }
 
 // Start the SpinnerPrinter.
 func (s SpinnerPrinter) Start(text ...interface{}) (*SpinnerPrinter, error) {
+	s.lazyInit()
+	s.atomicIsActive.Store(true)
 	s.IsActive = true
+	// We still set IsActive here so it is available to the users, it is not read anywhere
 	s.startedAt = time.Now()
-	activeSpinnerPrinters = append(activeSpinnerPrinters, &s)
+
+	activeSpinnerPrinters.lock.Lock()
+	activeSpinnerPrinters.printers = append(activeSpinnerPrinters.printers, &s)
+	activeSpinnerPrinters.lock.Unlock()
 
 	if len(text) != 0 {
-		s.Text = Sprint(text...)
+		s.atomicText.Store(Sprint(text...))
 	}
 
-	if RawOutput {
-		Fprintln(s.Writer, s.Text)
+	if RawOutput.Load() {
+		Fprintln(s.Writer, s.atomicText.Load())
 	}
 
 	go func() {
-		for s.IsActive {
+		for s.atomicIsActive.Load() {
 			for _, seq := range s.Sequence {
-				if !s.IsActive {
+				if !s.atomicIsActive.Load() {
 					continue
 				}
-				if RawOutput {
+				if RawOutput.Load() {
 					time.Sleep(s.Delay)
 					continue
 				}
@@ -171,8 +223,9 @@ func (s SpinnerPrinter) Start(text ...interface{}) (*SpinnerPrinter, error) {
 				if s.ShowTimer {
 					timer = " (" + time.Since(s.startedAt).Round(s.TimerRoundingFactor).String() + ")"
 				}
-				Fprinto(s.Writer, s.Style.Sprint(seq)+" "+s.MessageStyle.Sprint(s.Text)+s.TimerStyle.Sprint(timer))
-				s.currentSequence = seq
+				fClearLine(s.Writer)
+				Fprinto(s.Writer, s.Style.Sprint(seq)+" "+s.MessageStyle.Sprint(s.atomicText.Load())+s.TimerStyle.Sprint(timer))
+				s.currentSequence.Store(seq)
 				time.Sleep(s.Delay)
 			}
 		}
@@ -183,10 +236,11 @@ func (s SpinnerPrinter) Start(text ...interface{}) (*SpinnerPrinter, error) {
 // Stop terminates the SpinnerPrinter immediately.
 // The SpinnerPrinter will not resolve into anything.
 func (s *SpinnerPrinter) Stop() error {
-	if !s.IsActive {
+	s.lazyInit()
+	if !s.atomicIsActive.Load() {
 		return nil
 	}
-	s.IsActive = false
+	s.atomicIsActive.Store(false)
 	if s.RemoveWhenDone {
 		fClearLine(s.Writer)
 		Fprinto(s.Writer)
@@ -209,6 +263,7 @@ func (s *SpinnerPrinter) GenericStart() (*LivePrinter, error) {
 // This is used for the interface LivePrinter.
 // You most likely want to use Stop instead of this in your program.
 func (s *SpinnerPrinter) GenericStop() (*LivePrinter, error) {
+	s.lazyInit()
 	_ = s.Stop()
 	lp := LivePrinter(s)
 	return &lp, nil
@@ -217,12 +272,13 @@ func (s *SpinnerPrinter) GenericStop() (*LivePrinter, error) {
 // Info displays an info message
 // If no message is given, the text of the SpinnerPrinter will be reused as the default message.
 func (s *SpinnerPrinter) Info(message ...interface{}) {
+	s.lazyInit()
 	if s.InfoPrinter == nil {
 		s.InfoPrinter = &Info
 	}
 
 	if len(message) == 0 {
-		message = []interface{}{s.Text}
+		message = []interface{}{s.atomicText.Load()}
 	}
 	fClearLine(s.Writer)
 	Fprinto(s.Writer, s.InfoPrinter.Sprint(message...))
@@ -232,12 +288,13 @@ func (s *SpinnerPrinter) Info(message ...interface{}) {
 // Success displays the success printer.
 // If no message is given, the text of the SpinnerPrinter will be reused as the default message.
 func (s *SpinnerPrinter) Success(message ...interface{}) {
+	s.lazyInit()
 	if s.SuccessPrinter == nil {
 		s.SuccessPrinter = &Success
 	}
 
 	if len(message) == 0 {
-		message = []interface{}{s.Text}
+		message = []interface{}{s.atomicText.Load()}
 	}
 	fClearLine(s.Writer)
 	Fprinto(s.Writer, s.SuccessPrinter.Sprint(message...))
@@ -247,12 +304,13 @@ func (s *SpinnerPrinter) Success(message ...interface{}) {
 // Fail displays the fail printer.
 // If no message is given, the text of the SpinnerPrinter will be reused as the default message.
 func (s *SpinnerPrinter) Fail(message ...interface{}) {
+	s.lazyInit()
 	if s.FailPrinter == nil {
 		s.FailPrinter = &Error
 	}
 
 	if len(message) == 0 {
-		message = []interface{}{s.Text}
+		message = []interface{}{s.atomicText.Load()}
 	}
 	fClearLine(s.Writer)
 	Fprinto(s.Writer, s.FailPrinter.Sprint(message...))
@@ -262,12 +320,13 @@ func (s *SpinnerPrinter) Fail(message ...interface{}) {
 // Warning displays the warning printer.
 // If no message is given, the text of the SpinnerPrinter will be reused as the default message.
 func (s *SpinnerPrinter) Warning(message ...interface{}) {
+	s.lazyInit()
 	if s.WarningPrinter == nil {
 		s.WarningPrinter = &Warning
 	}
 
 	if len(message) == 0 {
-		message = []interface{}{s.Text}
+		message = []interface{}{s.atomicText.Load()}
 	}
 	fClearLine(s.Writer)
 	Fprinto(s.Writer, s.WarningPrinter.Sprint(message...))

@@ -1,40 +1,52 @@
 package pterm
 
 import (
-	"atomicgo.dev/cursor"
-	"atomicgo.dev/schedule"
 	"fmt"
 	"io"
 	"math"
 	"os"
 	"strings"
+	"sync"
 	"time"
+
+	"atomicgo.dev/cursor"
+	"atomicgo.dev/schedule"
 
 	"github.com/gookit/color"
 
 	"github.com/pterm/pterm/internal"
 )
 
-// ActiveProgressBarPrinters contains all running ProgressbarPrinters.
+// activeProgressBarPrinters contains all running ProgressbarPrinters.
 // Generally, there should only be one active ProgressbarPrinter at a time.
-var ActiveProgressBarPrinters []*ProgressbarPrinter
-
-// DefaultProgressbar is the default ProgressbarPrinter.
-var DefaultProgressbar = ProgressbarPrinter{
-	Total:                     100,
-	BarCharacter:              "█",
-	LastCharacter:             "█",
-	ElapsedTimeRoundingFactor: time.Second,
-	BarStyle:                  &ThemeDefault.ProgressbarBarStyle,
-	TitleStyle:                &ThemeDefault.ProgressbarTitleStyle,
-	ShowTitle:                 true,
-	ShowCount:                 true,
-	ShowPercentage:            true,
-	ShowElapsedTime:           true,
-	BarFiller:                 Gray("█"),
-	MaxWidth:                  80,
-	Writer:                    os.Stdout,
+type atomicActiveProgressBarPrinters struct {
+	printers []*ProgressbarPrinter
+	lock     *sync.Mutex
 }
+
+var (
+	// DefaultProgressbar is the default ProgressbarPrinter.
+	DefaultProgressbar = ProgressbarPrinter{
+		Total:                     100,
+		BarCharacter:              "█",
+		LastCharacter:             "█",
+		ElapsedTimeRoundingFactor: time.Second,
+		BarStyle:                  &ThemeDefault.ProgressbarBarStyle,
+		TitleStyle:                &ThemeDefault.ProgressbarTitleStyle,
+		ShowTitle:                 true,
+		ShowCount:                 true,
+		ShowPercentage:            true,
+		ShowElapsedTime:           true,
+		BarFiller:                 Gray("█"),
+		MaxWidth:                  80,
+		Writer:                    os.Stdout,
+	}
+
+	activeProgressBarPrinters = atomicActiveProgressBarPrinters{
+		printers: []*ProgressbarPrinter{},
+		lock:     &sync.Mutex{},
+	}
+)
 
 // ProgressbarPrinter shows a progress animation in the terminal.
 type ProgressbarPrinter struct {
@@ -284,14 +296,18 @@ func (p *ProgressbarPrinter) Add(count int) *ProgressbarPrinter {
 // Start the ProgressbarPrinter.
 func (p ProgressbarPrinter) Start(title ...interface{}) (*ProgressbarPrinter, error) {
 	cursor.Hide()
-	if RawOutput && p.ShowTitle {
+	if RawOutput.Load() && p.ShowTitle {
 		Fprintln(p.Writer, p.Title)
 	}
 	p.IsActive = true
 	if len(title) != 0 {
 		p.Title = Sprint(title...)
 	}
-	ActiveProgressBarPrinters = append(ActiveProgressBarPrinters, &p)
+
+	activeProgressBarPrinters.lock.Lock()
+	activeProgressBarPrinters.printers = append(activeProgressBarPrinters.printers, &p)
+	activeProgressBarPrinters.lock.Unlock()
+
 	p.startedAt = time.Now()
 
 	p.updateProgress()
