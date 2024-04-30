@@ -46,11 +46,6 @@ var (
 		printers: []*ProgressbarPrinter{},
 		lock:     &sync.Mutex{},
 	}
-
-	activeProgressBarPrinters = atomicActiveProgressBarPrinters{
-		printers: []*ProgressbarPrinter{},
-		lock:     &sync.Mutex{},
-	}
 )
 
 // ProgressbarPrinter shows a progress animation in the terminal.
