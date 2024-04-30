@@ -10,6 +10,7 @@ require (
 	github.com/gookit/color v1.5.4
 	github.com/lithammer/fuzzysearch v1.1.8
 	github.com/mattn/go-runewidth v0.0.15
+	go.uber.org/atomic v1.10.0
 	golang.org/x/term v0.16.0
 	golang.org/x/text v0.14.0
 )
@@ -23,7 +24,4 @@ require (
 	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/sys v0.16.0 // indirect
-	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect
-	go.uber.org/atomic v1.10.0 // indirect
-	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 )
