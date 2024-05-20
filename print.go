@@ -3,20 +3,25 @@ package pterm
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"sync"
 
 	"github.com/gookit/color"
 )
 
-// Need to use this because "github.com/gookit/color" is NOT a thread-safe library for Print & Sprintf functions.
-// Used to protect against some unsafe actions in Fprint as well
-var pLock sync.RWMutex
+var (
+	// Need to use this because "github.com/gookit/color" is NOT a thread-safe library for Print & Sprintf functions.
+	// Used to protect against some unsafe actions in Fprint as well
+	pLock         sync.RWMutex
+	defaultWriter io.Writer = os.Stdout
+)
 
 // SetDefaultOutput sets the default output of pterm.
 func SetDefaultOutput(w io.Writer) {
 	pLock.Lock()
 	defer pLock.Unlock()
+	defaultWriter = w
 	color.SetOutput(w)
 }
 
@@ -58,7 +63,7 @@ func Sprinto(a ...interface{}) string {
 // Spaces are added between operands when neither is a string.
 // It returns the number of bytes written and any write error encountered.
 func Print(a ...interface{}) {
-	Fprint(nil, a...)
+	Fprint(defaultWriter, a...)
 }
 
 // Println formats using the default formats for its operands and writes to standard output.

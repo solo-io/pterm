@@ -9,21 +9,23 @@ on:
 jobs:
 
   build:
+    if: "!contains(github.event.head_commit.message, 'autoupdate')"
     name: Build
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, windows-latest ]
+        os: [ windows-latest ]
     steps:
 
       - name: Set up Go 1.x
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
-          go-version: ^1
+          go-version: 1.21
+          cache-dependency-path: go.sum
         id: go
 
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Get dependencies
         run: go get -v -t -d ./...
@@ -38,5 +40,5 @@ jobs:
         run: go test -race -coverprofile="coverage.txt" -covermode=atomic -p 1 .
 
       - name: Upload coverage to Codecov
-        if: success() && matrix.os == 'ubuntu-latest'
-        uses: codecov/codecov-action@v1
+        if: success() && matrix.os == 'windows-latest'
+        uses: codecov/codecov-action@v3

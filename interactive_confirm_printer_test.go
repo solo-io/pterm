@@ -3,6 +3,7 @@
 package pterm_test
 
 import (
+	"reflect"
 	"testing"
 
 	"atomicgo.dev/keyboard"
@@ -67,6 +68,11 @@ func TestInteractiveConfirmPrinter_WithDefaultText(t *testing.T) {
 	testza.AssertEqual(t, p.DefaultText, "default")
 }
 
+func TestInteractiveConfirmPrinter_WithDelimiter(t *testing.T) {
+	p := pterm.DefaultInteractiveConfirm.WithDelimiter(">>")
+	testza.AssertEqual(t, p.Delimiter, ">>")
+}
+
 func TestInteractiveConfirmPrinter_WithRejectStyle(t *testing.T) {
 	style := pterm.NewStyle(pterm.FgRed)
 	p := pterm.DefaultInteractiveConfirm.WithRejectStyle(style)
@@ -127,4 +133,15 @@ func TestInteractiveConfirmPrinter_WithTextStyle(t *testing.T) {
 	style := pterm.NewStyle(pterm.FgRed)
 	p := pterm.DefaultInteractiveConfirm.WithTextStyle(style)
 	testza.AssertEqual(t, p.TextStyle, style)
+}
+
+func TestInteractiveConfirmPrinter_WithOnInterruptFunc(t *testing.T) {
+	// OnInterrupt function defaults to nil
+	pd := pterm.InteractiveConfirmPrinter{}
+	testza.AssertNil(t, pd.OnInterruptFunc)
+
+	// Verify OnInterrupt is set
+	exitfunc := func() {}
+	p := pterm.DefaultInteractiveConfirm.WithOnInterruptFunc(exitfunc)
+	testza.AssertEqual(t, reflect.ValueOf(p.OnInterruptFunc).Pointer(), reflect.ValueOf(exitfunc).Pointer())
 }

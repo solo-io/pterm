@@ -8,25 +8,31 @@ package main
 import "github.com/pterm/pterm"
 
 func main() {
-	// Create a fork of the default table, fill it with data and print it.
-	// Data can also be generated and inserted later.
-	pterm.DefaultTable.WithHasHeader().WithData(pterm.TableData{
+	// Define the data for the first table
+	tableData1 := pterm.TableData{
 		{"Firstname", "Lastname", "Email", "Note"},
-		{"Paul", "Dean", "nisi.dictum.augue@velitAliquam.co.uk", ""},
-		{"Callie", "Mckay", "egestas.nunc.sed@est.com", "这是一个测试, haha!"},
-		{"Libby", "Camacho", "aliquet.lobortis@semper.com", "just a test, hey!"},
-	}).Render()
+		{"Paul", "Dean", "augue@velitAliquam.co.uk", ""},
+		{"Callie", "Mckay", "nunc.sed@est.com", "这是一个测试, haha!"},
+		{"Libby", "Camacho", "lobortis@semper.com", "just a test, hey!"},
+		{"张", "小宝", "zhang@example.com", ""},
+	}
+
+	// Create a table with a header and the defined data, then render it
+	pterm.DefaultTable.WithHasHeader().WithData(tableData1).Render()
 
 	pterm.Println() // Blank line
 
-	// Create a table with right alignment.
-	pterm.DefaultTable.WithHasHeader().WithData(pterm.TableData{
+	// Define the data for the second table
+	tableData2 := pterm.TableData{
 		{"Firstname", "Lastname", "Email"},
-		{"Paul", "Dean", "nisi.dictum.augue@velitAliquam.co.uk"},
-		{"Callie", "Mckay", "egestas.nunc.sed@est.com"},
-		{"Libby", "Camacho", "aliquet.lobortis@semper.com"},
+		{"Paul\n\nNewline", "Dean", "augue@velitAliquam.co.uk"},
+		{"Callie", "Mckay", "nunc.sed@est.com\nNewline"},
+		{"Libby", "Camacho", "lobortis@semper.com"},
 		{"张", "小宝", "zhang@example.com"},
-	}).WithRightAlignment().Render()
+	}
+
+	// Create another table with a header and the defined data, then render it
+	pterm.DefaultTable.WithHasHeader().WithData(tableData2).Render()
 }
 
 ```

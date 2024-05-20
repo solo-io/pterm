@@ -130,6 +130,12 @@ func (s SpinnerPrinter) WithShowTimer(b ...bool) *SpinnerPrinter {
 	return &s
 }
 
+// WithStartedAt sets the time when the SpinnerPrinter started.
+func (s SpinnerPrinter) WithStartedAt(t time.Time) *SpinnerPrinter {
+	s.startedAt = t
+	return &s
+}
+
 // WithTimerRoundingFactor sets the rounding factor for the timer.
 func (s SpinnerPrinter) WithTimerRoundingFactor(factor time.Duration) *SpinnerPrinter {
 	s.lazyInit()
@@ -149,6 +155,21 @@ func (s SpinnerPrinter) WithWriter(writer io.Writer) *SpinnerPrinter {
 	s.lazyInit()
 	s.Writer = writer
 	return &s
+}
+
+// SetWriter sets the custom Writer.
+func (p *SpinnerPrinter) SetWriter(writer io.Writer) {
+	p.Writer = writer
+}
+
+// ResetTimer resets the timer of the SpinnerPrinter.
+func (s *SpinnerPrinter) ResetTimer() {
+	s.startedAt = time.Now()
+}
+
+// SetStartedAt sets the time when the SpinnerPrinter started.
+func (s *SpinnerPrinter) SetStartedAt(t time.Time) {
+	s.startedAt = t
 }
 
 // UpdateText updates the message of the active SpinnerPrinter.
@@ -190,7 +211,11 @@ func (s SpinnerPrinter) Start(text ...interface{}) (*SpinnerPrinter, error) {
 	go func() {
 		for s.atomicIsActive.Load() {
 			for _, seq := range s.Sequence {
-				if !s.atomicIsActive.Load() || RawOutput.Load() {
+				if !s.atomicIsActive.Load() {
+					continue
+				}
+				if RawOutput.Load() {
+					time.Sleep(s.Delay)
 					continue
 				}
 
@@ -230,8 +255,8 @@ func (s *SpinnerPrinter) Stop() error {
 // You most likely want to use Start instead of this in your program.
 func (s *SpinnerPrinter) GenericStart() (*LivePrinter, error) {
 	s.lazyInit()
-	_, _ = s.Start()
-	lp := LivePrinter(s)
+	p2, _ := s.Start()
+	lp := LivePrinter(p2)
 	return &lp, nil
 }
 
