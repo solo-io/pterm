@@ -77,17 +77,25 @@ type ProgressbarPrinter struct {
 	Writer io.Writer
 
 	// Thread-safe versions of existing variables used internally
-	atomicIsActive *atomic.Bool
 	atomicTitle    *atomic.String
+	atomicTotal    *atomic.Int32
+	atomicCurrent  *atomic.Int32
+	atomicIsActive *atomic.Bool
 }
 
 // Lazy init used to initialize thread-safe variables
 func (p *ProgressbarPrinter) lazyInit() {
-	if p.atomicIsActive == nil {
-		p.atomicIsActive = atomic.NewBool(p.IsActive)
-	}
 	if p.atomicTitle == nil {
 		p.atomicTitle = atomic.NewString(p.Title)
+	}
+	if p.atomicCurrent == nil {
+		p.atomicCurrent = atomic.NewInt32(int32(p.Current))
+	}
+	if p.atomicTotal == nil {
+		p.atomicTotal = atomic.NewInt32(int32(p.Total))
+	}
+	if p.atomicIsActive == nil {
+		p.atomicIsActive = atomic.NewBool(p.IsActive)
 	}
 }
 
@@ -112,6 +120,8 @@ func (p ProgressbarPrinter) WithMaxWidth(maxWidth int) *ProgressbarPrinter {
 // WithTotal sets the total value of the ProgressbarPrinter.
 func (p ProgressbarPrinter) WithTotal(total int) *ProgressbarPrinter {
 	p.lazyInit()
+	p.atomicTotal.Store(int32(total))
+	// We still set Total here so it is available to the users, it is not read anywhere
 	p.Total = total
 	return &p
 }
@@ -119,6 +129,8 @@ func (p ProgressbarPrinter) WithTotal(total int) *ProgressbarPrinter {
 // WithCurrent sets the current value of the ProgressbarPrinter.
 func (p ProgressbarPrinter) WithCurrent(current int) *ProgressbarPrinter {
 	p.lazyInit()
+	p.atomicCurrent.Store(int32(current))
+	// We still set Current here so it is available to the users, it is not read anywhere
 	p.Current = current
 	return &p
 }
@@ -260,7 +272,7 @@ func (p *ProgressbarPrinter) getString() string {
 	if p.BarStyle == nil {
 		p.BarStyle = NewStyle()
 	}
-	if p.Total == 0 {
+	if p.atomicTotal.Load() == 0 {
 		return ""
 	}
 
@@ -280,15 +292,15 @@ func (p *ProgressbarPrinter) getString() string {
 		before += p.TitleStyle.Sprint(p.atomicTitle.Load()) + " "
 	}
 	if p.ShowCount {
-		padding := 1 + int(math.Log10(float64(p.Total)))
-		before += Gray("[") + LightWhite(fmt.Sprintf("%0*d", padding, p.Current)) + Gray("/") + LightWhite(p.Total) + Gray("]") + " "
+		padding := 1 + int(math.Log10(float64(p.atomicTotal.Load())))
+		before += Gray("[") + LightWhite(fmt.Sprintf("%0*d", padding, p.atomicCurrent.Load())) + Gray("/") + LightWhite(p.atomicTotal.Load()) + Gray("]") + " "
 	}
 
 	after += " "
 
 	if p.ShowPercentage {
-		currentPercentage := int(internal.PercentageRound(float64(int64(p.Total)), float64(int64(p.Current))))
-		decoratorCurrentPercentage := color.RGB(NewRGB(255, 0, 0).Fade(0, float32(p.Total), float32(p.Current), NewRGB(0, 255, 0)).GetValues()).
+		currentPercentage := int(internal.PercentageRound(float64(int64(p.atomicTotal.Load())), float64(int64(p.atomicCurrent.Load()))))
+		decoratorCurrentPercentage := color.RGB(NewRGB(255, 0, 0).Fade(0, float32(p.atomicTotal.Load()), float32(p.atomicCurrent.Load()), NewRGB(0, 255, 0)).GetValues()).
 			Sprintf("%3d%%", currentPercentage)
 		after += decoratorCurrentPercentage + " "
 	}
@@ -298,7 +310,7 @@ func (p *ProgressbarPrinter) getString() string {
 
 	barMaxLength := width - len(RemoveColorFromString(before)) - len(RemoveColorFromString(after)) - 1
 
-	barCurrentLength := (p.Current * barMaxLength) / p.Total
+	barCurrentLength := (int(p.atomicCurrent.Load()) * barMaxLength) / int(p.atomicTotal.Load())
 	var barFiller string
 	if barMaxLength-barCurrentLength > 0 {
 		barFiller = strings.Repeat(p.BarFiller, barMaxLength-barCurrentLength)
@@ -314,14 +326,18 @@ func (p *ProgressbarPrinter) getString() string {
 
 // Add to current value.
 func (p *ProgressbarPrinter) Add(count int) *ProgressbarPrinter {
-	if p.Total == 0 {
+	if p.atomicTotal.Load() == 0 {
 		return nil
 	}
 
+	p.atomicCurrent.Add(int32(count))
+	// We still set Current here so it is available to the users, it is not read anywhere
 	p.Current += count
 	p.updateProgress()
 
-	if p.Current >= p.Total {
+	if p.atomicCurrent.Load() >= p.atomicTotal.Load() {
+		p.atomicTotal.Store(p.atomicCurrent.Load())
+		// We still set Total here so it is available to the users, it is not read anywhere
 		p.Total = p.Current
 		p.updateProgress()
 		p.Stop()
