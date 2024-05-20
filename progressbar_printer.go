@@ -11,6 +11,7 @@ import (
 
 	"atomicgo.dev/cursor"
 	"atomicgo.dev/schedule"
+	"go.uber.org/atomic"
 
 	"github.com/gookit/color"
 
@@ -74,10 +75,27 @@ type ProgressbarPrinter struct {
 	rerenderTask *schedule.Task
 
 	Writer io.Writer
+
+	// Thread-safe versions of existing variables used internally
+	atomicIsActive *atomic.Bool
+	atomicTitle    *atomic.String
+}
+
+// Lazy init used to initialize thread-safe variables
+func (p *ProgressbarPrinter) lazyInit() {
+	if p.atomicIsActive == nil {
+		p.atomicIsActive = atomic.NewBool(p.IsActive)
+	}
+	if p.atomicTitle == nil {
+		p.atomicTitle = atomic.NewString(p.Title)
+	}
 }
 
 // WithTitle sets the name of the ProgressbarPrinter.
 func (p ProgressbarPrinter) WithTitle(name string) *ProgressbarPrinter {
+	p.lazyInit()
+	p.atomicTitle.Store(name)
+	// We still set Title here so it is available to the users, it is not read anywhere
 	p.Title = name
 	return &p
 }
@@ -86,96 +104,112 @@ func (p ProgressbarPrinter) WithTitle(name string) *ProgressbarPrinter {
 // If the terminal is smaller than the given width, the terminal width will be used instead.
 // If the width is set to zero, or below, the terminal width will be used.
 func (p ProgressbarPrinter) WithMaxWidth(maxWidth int) *ProgressbarPrinter {
+	p.lazyInit()
 	p.MaxWidth = maxWidth
 	return &p
 }
 
 // WithTotal sets the total value of the ProgressbarPrinter.
 func (p ProgressbarPrinter) WithTotal(total int) *ProgressbarPrinter {
+	p.lazyInit()
 	p.Total = total
 	return &p
 }
 
 // WithCurrent sets the current value of the ProgressbarPrinter.
 func (p ProgressbarPrinter) WithCurrent(current int) *ProgressbarPrinter {
+	p.lazyInit()
 	p.Current = current
 	return &p
 }
 
 // WithBarCharacter sets the bar character of the ProgressbarPrinter.
 func (p ProgressbarPrinter) WithBarCharacter(char string) *ProgressbarPrinter {
+	p.lazyInit()
 	p.BarCharacter = char
 	return &p
 }
 
 // WithLastCharacter sets the last character of the ProgressbarPrinter.
 func (p ProgressbarPrinter) WithLastCharacter(char string) *ProgressbarPrinter {
+	p.lazyInit()
 	p.LastCharacter = char
 	return &p
 }
 
 // WithElapsedTimeRoundingFactor sets the rounding factor of the elapsed time.
 func (p ProgressbarPrinter) WithElapsedTimeRoundingFactor(duration time.Duration) *ProgressbarPrinter {
+	p.lazyInit()
 	p.ElapsedTimeRoundingFactor = duration
 	return &p
 }
 
 // WithShowElapsedTime sets if the elapsed time should be displayed in the ProgressbarPrinter.
 func (p ProgressbarPrinter) WithShowElapsedTime(b ...bool) *ProgressbarPrinter {
+	p.lazyInit()
 	p.ShowElapsedTime = internal.WithBoolean(b)
 	return &p
 }
 
 // WithShowCount sets if the total and current count should be displayed in the ProgressbarPrinter.
 func (p ProgressbarPrinter) WithShowCount(b ...bool) *ProgressbarPrinter {
+	p.lazyInit()
 	p.ShowCount = internal.WithBoolean(b)
 	return &p
 }
 
 // WithShowTitle sets if the title should be displayed in the ProgressbarPrinter.
 func (p ProgressbarPrinter) WithShowTitle(b ...bool) *ProgressbarPrinter {
+	p.lazyInit()
 	p.ShowTitle = internal.WithBoolean(b)
 	return &p
 }
 
 // WithShowPercentage sets if the completed percentage should be displayed in the ProgressbarPrinter.
 func (p ProgressbarPrinter) WithShowPercentage(b ...bool) *ProgressbarPrinter {
+	p.lazyInit()
 	p.ShowPercentage = internal.WithBoolean(b)
 	return &p
 }
 
 // WithStartedAt sets the time when the ProgressbarPrinter started.
 func (p ProgressbarPrinter) WithStartedAt(t time.Time) *ProgressbarPrinter {
+	p.lazyInit()
 	p.startedAt = t
 	return &p
 }
 
 // WithTitleStyle sets the style of the title.
 func (p ProgressbarPrinter) WithTitleStyle(style *Style) *ProgressbarPrinter {
+	p.lazyInit()
 	p.TitleStyle = style
 	return &p
 }
 
 // WithBarStyle sets the style of the bar.
 func (p ProgressbarPrinter) WithBarStyle(style *Style) *ProgressbarPrinter {
+	p.lazyInit()
 	p.BarStyle = style
 	return &p
 }
 
 // WithRemoveWhenDone sets if the ProgressbarPrinter should be removed when it is done.
 func (p ProgressbarPrinter) WithRemoveWhenDone(b ...bool) *ProgressbarPrinter {
+	p.lazyInit()
 	p.RemoveWhenDone = internal.WithBoolean(b)
 	return &p
 }
 
 // WithBarFiller sets the filler character for the ProgressbarPrinter.
 func (p ProgressbarPrinter) WithBarFiller(char string) *ProgressbarPrinter {
+	p.lazyInit()
 	p.BarFiller = char
 	return &p
 }
 
 // WithWriter sets the custom Writer.
 func (p ProgressbarPrinter) WithWriter(writer io.Writer) *ProgressbarPrinter {
+	p.lazyInit()
 	p.Writer = writer
 	return &p
 }
@@ -203,6 +237,8 @@ func (p *ProgressbarPrinter) Increment() *ProgressbarPrinter {
 
 // UpdateTitle updates the title and re-renders the progressbar
 func (p *ProgressbarPrinter) UpdateTitle(title string) *ProgressbarPrinter {
+	p.atomicTitle.Store(title)
+	// We still set Title here so it is available to the users, it is not read anywhere
 	p.Title = title
 	p.updateProgress()
 	return p
@@ -215,7 +251,7 @@ func (p *ProgressbarPrinter) updateProgress() *ProgressbarPrinter {
 }
 
 func (p *ProgressbarPrinter) getString() string {
-	if !p.IsActive {
+	if !p.atomicIsActive.Load() {
 		return ""
 	}
 	if p.TitleStyle == nil {
@@ -241,7 +277,7 @@ func (p *ProgressbarPrinter) getString() string {
 	}
 
 	if p.ShowTitle {
-		before += p.TitleStyle.Sprint(p.Title) + " "
+		before += p.TitleStyle.Sprint(p.atomicTitle.Load()) + " "
 	}
 	if p.ShowCount {
 		padding := 1 + int(math.Log10(float64(p.Total)))
@@ -295,13 +331,16 @@ func (p *ProgressbarPrinter) Add(count int) *ProgressbarPrinter {
 
 // Start the ProgressbarPrinter.
 func (p ProgressbarPrinter) Start(title ...interface{}) (*ProgressbarPrinter, error) {
+	p.lazyInit()
 	cursor.Hide()
-	if RawOutput.Load() && p.ShowTitle {
-		Fprintln(p.Writer, p.Title)
-	}
 	p.IsActive = true
+	p.atomicIsActive.Store(p.IsActive)
 	if len(title) != 0 {
 		p.Title = Sprint(title...)
+		p.atomicTitle.Store(p.Title)
+	}
+	if RawOutput.Load() && p.ShowTitle {
+		Fprintln(p.Writer, p.atomicTitle.Load())
 	}
 
 	activeProgressBarPrinters.lock.Lock()
@@ -329,10 +368,11 @@ func (p *ProgressbarPrinter) Stop() (*ProgressbarPrinter, error) {
 	}
 	cursor.Show()
 
-	if !p.IsActive {
+	if !p.atomicIsActive.Load() {
 		return p, nil
 	}
 	p.IsActive = false
+	p.atomicIsActive.Store(false)
 	if p.RemoveWhenDone {
 		fClearLine(p.Writer)
 		Fprinto(p.Writer)

@@ -68,9 +68,9 @@ func TestProgressbarPrinter_RemoveWhenDone(t *testing.T) {
 }
 
 func TestProgressbarPrinter_StartWithTitle(t *testing.T) {
-	p := pterm.DefaultProgressbar
-	p2, _ := p.Start("Title")
-	testza.AssertEqual(t, "Title", p2.Title)
+	p, err := pterm.DefaultProgressbar.Start("Title")
+	testza.AssertNil(t, err)
+	testza.AssertEqual(t, "Title", p.Title)
 	p.Stop()
 }
 
@@ -93,8 +93,8 @@ func TestProgressbarPrinter_GenericStop(t *testing.T) {
 }
 
 func TestProgressbarPrinter_GetElapsedTime(t *testing.T) {
-	p := pterm.DefaultProgressbar
-	p.Start()
+	p, err := pterm.DefaultProgressbar.Start()
+	testza.AssertNil(t, err)
 	p.Stop()
 	testza.AssertNotZero(t, p.GetElapsedTime())
 }
